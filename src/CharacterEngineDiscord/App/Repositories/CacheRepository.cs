@@ -39,17 +39,16 @@ public class CacheRepository : RepositoryBase
         _cachedUsers.TryAdd(userId, null);
     }
 
-    public void EnsureUserCached(IGuildUser guildUser)
+    public Task EnsureUserCached(IGuildUser guildUser)
     {
         if (!_cachedUsers.TryAdd(guildUser.Id, null))
         {
-            return;
+            return Task.CompletedTask;
         }
 
-        Task.Run(async () =>
+        return Task.Run(async () =>
         {
-            EnsureGuildCached(guildUser.Guild, wait: true);
-
+            await EnsureGuildCached(guildUser.Guild);
 
             DB.DiscordUsers.Add(new DiscordUser
             {
@@ -60,16 +59,16 @@ public class CacheRepository : RepositoryBase
         });
     }
 
-    public void EnsureChannelCached(IGuildChannel channel)
+    public Task EnsureChannelCached(IGuildChannel channel)
     {
         if (!_cachedChannels.TryAdd(channel.Id, false))
         {
-            return;
+            return Task.CompletedTask;
         }
 
-        Task.Run(async () =>
+        return Task.Run(async () =>
         {
-            EnsureGuildCached(channel.Guild, wait: true);
+            await EnsureGuildCached(channel.Guild);
 
             var discordChannel = await DB.DiscordChannels.FindAsync(channel.Id);
 
@@ -99,14 +98,14 @@ public class CacheRepository : RepositoryBase
     }
 
 
-    public void EnsureGuildCached(IGuild guild, bool wait = false)
+    public Task EnsureGuildCached(IGuild guild)
     {
         if (!_cachedGuilds.TryAdd(guild.Id, null))
         {
-            return;
+            return Task.CompletedTask;
         }
 
-        var task = Task.Run(async () =>
+        return Task.Run(async () =>
         {
             var discordGuild = await DB.DiscordGuilds.FindAsync(guild.Id);
 
@@ -149,10 +148,5 @@ public class CacheRepository : RepositoryBase
 
             await DB.SaveChangesAsync();
         });
-
-        if (wait)
-        {
-            task.Wait();
-        }
     }
 }
